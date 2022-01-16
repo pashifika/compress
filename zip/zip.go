@@ -32,7 +32,9 @@ type ReadCloser struct {
 	zip *std_zip.ReadCloser
 }
 
-func (rc *ReadCloser) Name() string { return "zip" }
+const _zipName = "zip"
+
+func (rc *ReadCloser) Name() string { return _zipName }
 
 func (rc *ReadCloser) SetRootInfo(_ os.FileInfo) {}
 
