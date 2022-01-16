@@ -23,7 +23,7 @@ import (
 	"path"
 	"time"
 
-	"github.com/nwaples/rardecode"
+	"github.com/nwaples/rardecode/v2"
 
 	"github.com/pashifika/compress"
 )
@@ -37,7 +37,9 @@ type File struct {
 
 	dirReadAt  int
 	dirEntries func(path string, n int) ([]fs.DirEntry, error)
-	readCloser io.ReadCloser
+	fileOpen   func() (io.ReadCloser, error)
+	rcRead     func(p []byte) (n int, err error)
+	close      func() error
 }
 
 func (f *File) Root() string { return f.header.Name }
@@ -48,6 +50,23 @@ func (f *File) Size() int64 { return f.size }
 
 func (f *File) Write(_ []byte) (n int, err error) {
 	return 0, compress.ErrWriterNotSupport
+}
+
+func (f *File) OpenFile() error {
+	rc, err := f.fileOpen()
+	if err != nil {
+		return err
+	}
+	f.rcRead = rc.Read
+	f.close = func() error {
+		err := rc.Close()
+		f.rcRead = nil
+		f.close = nil
+		f.fileOpen = nil
+		f.header = nil
+		return err
+	}
+	return nil
 }
 
 // ------ to fs.FileInfo ------
@@ -75,20 +94,13 @@ func (f *File) Sys() interface{} {
 
 // ------ to fs.File ------
 
-func (f *File) Stat() (fs.FileInfo, error) {
-	return f, nil
-}
+func (f *File) Stat() (fs.FileInfo, error) { return f, nil }
 
-func (f *File) Read(b []byte) (int, error) {
-	if f.readCloser != nil {
-		return f.readCloser.Read(b)
-	}
-	return 0, fs.ErrNotExist
-}
+func (f *File) Read(b []byte) (int, error) { return f.rcRead(b) }
 
 func (f *File) Close() error {
-	if f.readCloser != nil {
-		return f.readCloser.Close()
+	if f.close != nil {
+		return f.close()
 	}
 	return nil
 }

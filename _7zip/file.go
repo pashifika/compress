@@ -36,6 +36,7 @@ type File struct {
 
 	dirReadAt  int
 	dirEntries func(path string, n int) ([]fs.DirEntry, error)
+	rcRead     func(p []byte) (n int, err error)
 	close      func() error
 }
 
@@ -47,6 +48,22 @@ func (f *File) Size() int64 { return f.size }
 
 func (f *File) Write(_ []byte) (n int, err error) {
 	return 0, compress.ErrWriterNotSupport
+}
+
+func (f *File) OpenFile() error {
+	rc, err := f.f.Open()
+	if err != nil {
+		return err
+	}
+	f.rcRead = rc.Read
+	f.close = func() error {
+		err := rc.Close()
+		f.rcRead = nil
+		f.close = nil
+		f.f = nil
+		return err
+	}
+	return nil
 }
 
 // ------ to fs.FileInfo ------
@@ -74,18 +91,9 @@ func (f *File) Sys() interface{} {
 
 // ------ to fs.File ------
 
-func (f *File) Stat() (fs.FileInfo, error) {
-	return f, nil
-}
+func (f *File) Stat() (fs.FileInfo, error) { return f, nil }
 
-func (f *File) Read(b []byte) (int, error) {
-	rc, err := f.f.Open()
-	if err != nil {
-		return 0, err
-	}
-	f.close = rc.Close
-	return rc.Read(b)
-}
+func (f *File) Read(b []byte) (int, error) { return f.rcRead(b) }
 
 func (f *File) Close() error {
 	if f.close != nil {

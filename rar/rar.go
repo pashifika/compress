@@ -24,14 +24,13 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nwaples/rardecode"
+	"github.com/nwaples/rardecode/v2"
 	"golang.org/x/text/encoding"
 
 	"github.com/pashifika/compress"
 )
 
 type ReadCloser struct {
-	rar     *rardecode.ReadCloser
 	entries map[string]*compress.DirIndex
 	dirs    map[string]int
 	files   map[string]int
@@ -58,13 +57,20 @@ func (rc *ReadCloser) OpenReader(path string) (fs.FS, error) {
 // name has a ".001" suffix it is assumed there are multiple volumes and each
 // sequential volume will be opened.
 func (rc *ReadCloser) OpenReaderWithPassword(path, pwd string) (fs.FS, error) {
-	rar, err := rardecode.OpenReader(path, pwd)
+	var vfs fs.FS
+	opts := []rardecode.Option{
+		rardecode.FileSystem(vfs),
+	}
+	if pwd != "" {
+		opts = append(opts, rardecode.Password(pwd))
+	}
+	files, err := rardecode.List(path, opts...)
 	if err != nil {
 		return nil, err
 	}
 
 	maxIdx := 0
-	res := &ReadCloser{rar: rar,
+	res := &ReadCloser{
 		entries: map[string]*compress.DirIndex{
 			compress.DefaultArchiverRoot: compress.NewDirEntries(),
 		},
@@ -73,13 +79,10 @@ func (rc *ReadCloser) OpenReaderWithPassword(path, pwd string) (fs.FS, error) {
 		index: []*File{},
 		root:  rc.root,
 	}
-	for {
-		header, err := res.rar.Next()
-		if err == io.EOF {
-			break
-		}
-		mode := header.Mode()
-		entry := &File{header: header, size: 0, mode: mode}
+	for _, file := range files {
+		mode := file.Mode()
+		header := file.FileHeader
+		entry := &File{header: &header, size: 0, mode: mode}
 		if mode.IsDir() {
 			entry.isDir = true
 			entry.name = strings.TrimRight(header.Name, "/")
@@ -89,7 +92,7 @@ func (rc *ReadCloser) OpenReaderWithPassword(path, pwd string) (fs.FS, error) {
 		} else {
 			entry.name = header.Name
 			entry.size = header.UnPackedSize
-			entry.readCloser = io.NopCloser(res.rar)
+			entry.fileOpen = file.Open
 			res.files[entry.name] = maxIdx
 			// Add index to dir entries
 			dir := filepath.Dir(entry.name)
@@ -178,7 +181,14 @@ func (rc *ReadCloser) getFile(idx int) (*File, error) {
 	if idx > len(rc.index) || idx < 0 {
 		return nil, fs.ErrInvalid
 	}
-	return rc.index[idx], nil
+	file := rc.index[idx]
+	if !file.isDir {
+		err := file.OpenFile()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return file, nil
 }
 
 func (rc *ReadCloser) Reset() {
@@ -187,8 +197,8 @@ func (rc *ReadCloser) Reset() {
 
 // Close closes the rar file or volumes, rendering them unusable for I/O.
 func (rc *ReadCloser) Close() error {
-	if rc.rar != nil {
-		return rc.rar.Close()
+	if rc != nil {
+		rc.Reset()
 	}
 	return nil
 }

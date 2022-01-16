@@ -173,7 +173,14 @@ func (rc *ReadCloser) getFile(idx int) (*File, error) {
 	if idx > len(rc.index) || idx < 0 {
 		return nil, fs.ErrInvalid
 	}
-	return rc.index[idx], nil
+	file := rc.index[idx]
+	if !file.isDir {
+		err := file.OpenFile()
+		if err != nil {
+			return nil, err
+		}
+	}
+	return file, nil
 }
 
 func (rc *ReadCloser) Reset() {
@@ -183,7 +190,11 @@ func (rc *ReadCloser) Reset() {
 // Close closes the 7-zip file or volumes, rendering them unusable for I/O.
 func (rc *ReadCloser) Close() error {
 	if rc._7z != nil {
-		return rc._7z.Close()
+		err := rc._7z.Close()
+		return err
+	}
+	if rc != nil {
+		rc.Reset()
 	}
 	return nil
 }
