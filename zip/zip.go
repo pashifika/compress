@@ -21,6 +21,8 @@ import (
 	"io/fs"
 	"os"
 
+	"golang.org/x/text/encoding"
+
 	"github.com/pashifika/compress/internal/std_zip"
 
 	"github.com/pashifika/compress"
@@ -33,6 +35,10 @@ type ReadCloser struct {
 func (rc *ReadCloser) Name() string { return "zip" }
 
 func (rc *ReadCloser) SetRootInfo(_ os.FileInfo) {}
+
+func (rc *ReadCloser) SetCharset(charset []encoding.Encoding, skipErr bool) {
+	std_zip.SetCharset(charset, skipErr)
+}
 
 func (rc *ReadCloser) OpenReader(path string) (fs.FS, error) {
 	return rc.OpenReaderWithPassword(path, "")

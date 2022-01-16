@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/nwaples/rardecode"
+	"golang.org/x/text/encoding"
 
 	"github.com/pashifika/compress"
 )
@@ -42,6 +43,8 @@ type ReadCloser struct {
 func (rc *ReadCloser) Name() string { return "rar" }
 
 func (rc *ReadCloser) SetRootInfo(info os.FileInfo) { rc.root = info }
+
+func (rc *ReadCloser) SetCharset(_ []encoding.Encoding, _ bool) {}
 
 // OpenReader will open the 7-zip file specified by name and return a
 // ReadCloser. If name has a ".001" suffix it is assumed there are multiple

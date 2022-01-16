@@ -343,7 +343,14 @@ func readDirectoryHeader(f *File, r io.Reader) error {
 	if _, err := io.ReadFull(r, d); err != nil {
 		return err
 	}
-	f.Name = string(d[:filenameLen])
+	if str, err := decodeTxt(d[:filenameLen]); err == nil {
+		f.Name = str
+	} else {
+		if !_skipErr {
+			return err
+		}
+		f.Name = string(d[:filenameLen])
+	}
 	f.Extra = d[filenameLen : filenameLen+extraLen]
 	f.Comment = string(d[filenameLen+extraLen:])
 
