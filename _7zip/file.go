@@ -86,7 +86,7 @@ func (f *File) Sys() interface{} {
 	if f.f == nil {
 		return nil
 	}
-	return f.f.FileHeader
+	return &f.f.FileHeader
 }
 
 // ------ to fs.File ------
