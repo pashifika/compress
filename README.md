@@ -4,8 +4,8 @@ compress: a go compress library for fs.FS interface
 
 | Format | Test  | Charset | Decoder | Encoder | Password | Info                                                                                           |
 |--------|-------|---------|---------|---------|----------|------------------------------------------------------------------------------------------------|
-| zip    | local | true    | true    | true    | true     | used go std                                                                                    |
-| rar    | local | false   | true    | false   | false    | [rardecode/v2](github.com/nwaples/rardecode)                                                   |
+| zip    | local | true    | true    | true    | false    | used go std                                                                                    |
+| rar    | local | false   | true    | false   | true     | [rardecode/v2](http://github.com/nwaples/rardecode)                                            |
 | 7zip   | false | false   | true    | false   | true     | not work in big file(>10M)<br/>github.com/ulikunitz/xz/lzma.(*rangeDecoder).DecodeBit too slow |
 
 
